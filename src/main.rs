@@ -1,10 +1,13 @@
-use std::env;
-use std::fs::OpenOptions;
-use std::path::Path;
-use std::thread::sleep;
-use std::time::Duration;
+use std::{
+    env,
+    fs::OpenOptions,
+    io::{self, Write},
+    path::Path,
+    thread,
+    time::Duration,
+};
 
-fn is_writable(path: &str) -> bool {
+fn is_file_writable(path: &str) -> bool {
     OpenOptions::new()
         .write(true)
         .append(true)
@@ -14,20 +17,30 @@ fn is_writable(path: &str) -> bool {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-
     if args.len() != 2 {
-        eprintln!("Usage: waitonfile.exe <filename>");
+        eprintln!("Usage: waitonfile <filename>");
         std::process::exit(1);
     }
 
-    let file_path = &args[1];
+    let filename = &args[1];
+    let path = Path::new(filename);
 
-    println!("Waiting for {}...", file_path);
+    let spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    let mut idx = 0;
 
-    while !Path::new(file_path).exists() || !is_writable(file_path) {
-        sleep(Duration::from_secs(1));
+    print!("Waiting for {}... ", filename);
+    io::stdout().flush().unwrap();
+
+    loop {
+        if path.exists() && is_file_writable(filename) {
+            println!("\r[found]                        ");
+            break;
+        }
+
+        print!("\rWaiting for {}... {}", filename, spinner[idx]);
+        io::stdout().flush().unwrap();
+
+        idx = (idx + 1) % spinner.len();
+        thread::sleep(Duration::from_millis(100));
     }
-
-    println!("[found]");
 }
-
